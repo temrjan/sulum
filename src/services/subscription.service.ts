@@ -65,6 +65,14 @@ interface CreatePaymentResult {
 
 // ========== SERVICE ==========
 
+export type PaymentCallbackResult =
+  | 'activated'
+  | 'already_completed'
+  | 'not_found'
+  | 'amount_mismatch'
+  | 'updated'
+  | 'ignored';
+
 class SubscriptionService {
   /**
    * Проверить, активна ли подписка у пользователя
@@ -201,9 +209,14 @@ class SubscriptionService {
   }
 
   /**
-   * Обработать callback от Multicard (активировать подписку)
+   * Обработать callback от Multicard (активировать подписку).
+   * amountTiyin — сумма из callback (в тийинах); сверяется с записью в БД (в сумах).
    */
-  async processPaymentCallback(invoiceId: string, status: string): Promise<boolean> {
+  async processPaymentCallback(
+    invoiceId: string,
+    status: string,
+    amountTiyin?: number,
+  ): Promise<PaymentCallbackResult> {
     const payment = await prisma.payment.findUnique({
       where: { invoiceId },
       include: { user: true },
@@ -211,15 +224,25 @@ class SubscriptionService {
 
     if (!payment) {
       log.warn('Payment not found for callback', { invoiceId });
-      return false;
+      return 'not_found';
     }
 
     // Идемпотентность — уже обработан
     if (payment.status === PaymentStatus.COMPLETED) {
-      return true;
+      return 'already_completed';
     }
 
     if (status === 'paid' || status === 'success' || status === 'PAID') {
+      // Сумма из callback обязательна и обязана совпасть с записью в БД (fail-closed)
+      if (amountTiyin === undefined || Number(payment.amount) * 100 !== amountTiyin) {
+        log.error('Callback amount mismatch', undefined, {
+          invoiceId,
+          expectedTiyin: Number(payment.amount) * 100,
+          receivedTiyin: amountTiyin,
+        });
+        return 'amount_mismatch';
+      }
+
       // Активировать подписку
       await this.activateSubscription({
         id: payment.id,
@@ -227,7 +250,7 @@ class SubscriptionService {
         amount: Number(payment.amount),
         metadata: payment.metadata,
       });
-      return true;
+      return 'activated';
     }
 
     if (status === 'failed' || status === 'FAILED') {
@@ -235,10 +258,10 @@ class SubscriptionService {
         where: { id: payment.id },
         data: { status: PaymentStatus.FAILED },
       });
-      return true;
+      return 'updated';
     }
 
-    return false;
+    return 'ignored';
   }
 
   /**
