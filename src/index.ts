@@ -1,4 +1,4 @@
-import { logger } from "./utils/logger";
+import { logger, log } from "./utils/logger";
 import express, { Application } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -104,7 +104,7 @@ const start = async () => {
     await startBot();
     logger.info("Bot started in polling mode");
   } catch (error) {
-    logger.error("Failed to start:", error);
+    log.error("Failed to start", error);
     process.exit(1);
   }
 };

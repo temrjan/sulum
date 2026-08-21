@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger';
+import { logger, log } from '../utils/logger';
 import { Router, Request, Response } from 'express';
 import { subscriptionService } from '../services/subscription.service';
 import { multicardService } from '../services/multicard.service';
@@ -24,7 +24,7 @@ interface MulticardCallbackBody {
  * Если callback пришёл - значит оплата прошла успешно.
  */
 router.post('/callback', async (req: Request<unknown, unknown, MulticardCallbackBody>, res: Response): Promise<void> => {
-  logger.info('Payment callback received:', JSON.stringify(req.body));
+  log.info('Payment callback received: ' + JSON.stringify(req.body));
 
   try {
     if (!multicardService.validateCallback(req.body as Record<string, unknown>)) {
@@ -44,7 +44,7 @@ router.post('/callback', async (req: Request<unknown, unknown, MulticardCallback
     // Поэтому передаём 'paid' как статус
     const success = await subscriptionService.processPaymentCallback(invoiceId, 'paid');
 
-    logger.info('Payment callback processed:', { invoiceId, success });
+    log.info('Payment callback processed', { invoiceId, success });
 
     if (success) {
       const payment = await prisma.payment.findUnique({
@@ -69,17 +69,17 @@ router.post('/callback', async (req: Request<unknown, unknown, MulticardCallback
           if (botToken) {
             const bot = new Bot(botToken);
             await bot.api.sendMessage(telegramId, successMsg, { parse_mode: 'Markdown' });
-            logger.info('User notified about subscription:', telegramId);
+            log.info('User notified about subscription', { telegramId });
           }
         } catch (notifyError) {
-          logger.error('Failed to notify user:', notifyError);
+          log.error('Failed to notify user', notifyError);
         }
       }
     }
 
     res.json({ success: true });
   } catch (error) {
-    logger.error('Payment callback error:', error);
+    log.error('Payment callback error', error);
     res.status(500).json({ error: 'Internal error' });
   }
 });
@@ -90,7 +90,7 @@ router.post('/callback', async (req: Request<unknown, unknown, MulticardCallback
  */
 router.get('/status/:telegramId', async (req: Request, res: Response): Promise<void> => {
   try {
-    const telegramId = BigInt(req.params.telegramId);
+    const telegramId = BigInt(String(req.params.telegramId));
     const info = await subscriptionService.getSubscriptionInfo(telegramId);
 
     if (!info) {
@@ -100,7 +100,7 @@ router.get('/status/:telegramId', async (req: Request, res: Response): Promise<v
 
     res.json(info);
   } catch (error) {
-    logger.error('Get subscription status error:', error);
+    log.error('Get subscription status error', error);
     res.status(500).json({ error: 'Internal error' });
   }
 });

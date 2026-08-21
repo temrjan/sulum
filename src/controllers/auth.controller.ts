@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger';
+import { log } from '../utils/logger';
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
@@ -83,7 +83,7 @@ export class AuthController {
         refreshToken
       });
     } catch (error) {
-      logger.error('Auth error:', error);
+      log.error('Auth error', error);
       res.status(500).json({ error: 'Authentication failed' });
     }
   }

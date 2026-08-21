@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger';
+import { logger, log } from '../utils/logger';
 /**
  * Multicard Payment Gateway Service for Sulum
  * Интеграция с Multicard API для приема платежей в Узбекистане
@@ -83,7 +83,7 @@ class MulticardService {
   ]);
 
   constructor() {
-    logger.info('MulticardService initialized', {
+    log.info('MulticardService initialized', {
       apiUrl: config.apiUrl,
       storeId: config.storeId,
       hasCredentials: !!(config.applicationId && config.secret),
@@ -137,7 +137,7 @@ class MulticardService {
       logger.info('Multicard auth token obtained successfully');
       return token;
     } catch (error) {
-      logger.error('Multicard auth failed', error);
+      log.error('Multicard auth failed', error);
       const errMsg = error instanceof Error ? error.message : String(error);
       throw new Error(`Multicard authentication failed: ${errMsg}`);
     }
@@ -149,7 +149,7 @@ class MulticardService {
   async createInvoice(params: CreateInvoiceParams): Promise<InvoiceResponse> {
     const { invoiceId, amountSums, description, lang = 'ru' } = params;
 
-    logger.info('Creating Multicard invoice', { invoiceId, amountSums });
+    log.info('Creating Multicard invoice', { invoiceId, amountSums });
 
     if (!this.isConfigured()) {
       throw new Error('Multicard is not configured. Check env variables.');
@@ -197,7 +197,7 @@ class MulticardService {
       );
 
       if (response.data.success && response.data.data) {
-        logger.info('Multicard invoice created', {
+        log.info('Multicard invoice created', {
           invoiceId,
           uuid: response.data.data.uuid,
         });
@@ -210,7 +210,7 @@ class MulticardService {
         throw new Error('Invoice creation failed');
       }
     } catch (error) {
-      logger.error('Multicard invoice creation failed', { invoiceId, error });
+      log.error('Multicard invoice creation failed', error, { invoiceId });
       throw error;
     }
   }
@@ -254,7 +254,7 @@ class MulticardService {
         const jitter = Math.floor(Math.random() * 100);
         const delay = this.BASE_DELAY_MS * Math.pow(2, tryNo - 1) + jitter;
 
-        logger.warn(`POST retry ${tryNo}/${attempts} in ${delay}ms`, { url });
+        log.warn(`POST retry ${tryNo}/${attempts} in ${delay}ms`, { url });
         await this.sleep(delay);
       }
     }

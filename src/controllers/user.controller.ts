@@ -1,6 +1,6 @@
-import { logger } from '../utils/logger';
+import { log } from '../utils/logger';
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Gender } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -18,13 +18,13 @@ interface UpdateProfileBody {
 interface AddChildBody {
   name: string;
   birthDate: string;
-  gender?: string;
+  gender?: Gender;
 }
 
 interface UpdateChildBody {
   name?: string;
   birthDate?: string;
-  gender?: string;
+  gender?: Gender;
 }
 
 interface UpdateNotificationsBody {
@@ -62,7 +62,7 @@ export class UserController {
 
       res.json(user);
     } catch (error) {
-      logger.error('Get user error:', error);
+      log.error('Get user error', error);
       res.status(500).json({ error: 'Failed to get user' });
     }
   }
@@ -118,7 +118,7 @@ export class UserController {
 
       res.json(profile);
     } catch (error) {
-      logger.error('Update profile error:', error);
+      log.error('Update profile error', error);
       res.status(500).json({ error: 'Failed to update profile' });
     }
   }
@@ -164,7 +164,7 @@ export class UserController {
 
       res.json(child);
     } catch (error) {
-      logger.error('Add child error:', error);
+      log.error('Add child error', error);
       res.status(500).json({ error: 'Failed to add child' });
     }
   }
@@ -208,7 +208,7 @@ export class UserController {
 
       res.json(updatedChild);
     } catch (error) {
-      logger.error('Update child error:', error);
+      log.error('Update child error', error);
       res.status(500).json({ error: 'Failed to update child' });
     }
   }
@@ -248,7 +248,7 @@ export class UserController {
 
       res.json({ message: 'Child archived successfully' });
     } catch (error) {
-      logger.error('Delete child error:', error);
+      log.error('Delete child error', error);
       res.status(500).json({ error: 'Failed to delete child' });
     }
   }
@@ -288,7 +288,7 @@ export class UserController {
         childrenCount: children
       });
     } catch (error) {
-      logger.error('Get stats error:', error);
+      log.error('Get stats error', error);
       res.status(500).json({ error: 'Failed to get statistics' });
     }
   }
@@ -309,7 +309,7 @@ export class UserController {
 
       res.json(profile);
     } catch (error) {
-      logger.error('Update notifications error:', error);
+      log.error('Update notifications error', error);
       res.status(500).json({ error: 'Failed to update notifications' });
     }
   }

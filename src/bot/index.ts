@@ -1,4 +1,4 @@
-import { logger } from "../utils/logger";
+import { logger, log } from "../utils/logger";
 import { Bot, GrammyError, HttpError, session } from "grammy";
 import { conversations } from "@grammyjs/conversations";
 import { MyContext, SessionData } from "./types";
@@ -31,11 +31,11 @@ bot.catch((err) => {
   const e = err.error;
 
   if (e instanceof GrammyError) {
-    logger.error("Error in request:", e.description);
+    log.error("Error in request", e.description);
   } else if (e instanceof HttpError) {
-    logger.error("Could not contact Telegram:", e);
+    log.error("Could not contact Telegram", e);
   } else {
-    logger.error("Unknown error:", e);
+    log.error("Unknown error", e);
   }
 });
 

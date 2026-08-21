@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger';
+import { logger, log } from '../utils/logger';
 import OpenAI from 'openai';
 import { writeFile, unlink, mkdir } from 'fs/promises';
 import { existsSync, createReadStream } from 'fs';
@@ -52,7 +52,7 @@ export class VoiceService {
 
       return transcription.trim();
     } catch (error: unknown) {
-      logger.error('[VoiceService] Transcription error:', error);
+      log.error('[VoiceService] Transcription error', error);
       throw new Error('Failed to transcribe voice');
     } finally {
       try {
@@ -78,7 +78,7 @@ export class VoiceService {
       const buffer = Buffer.from(await mp3Response.arrayBuffer());
       return buffer;
     } catch (error: unknown) {
-      logger.error('[VoiceService] TTS error:', error);
+      log.error('[VoiceService] TTS error', error);
       throw new Error('Failed to synthesize speech');
     }
   }
@@ -135,7 +135,7 @@ export class VoiceService {
       const result = transcription as unknown as { language?: string };
       return result.language === 'uz' ? 'uz' : 'ru';
     } catch (error: unknown) {
-      logger.error('[VoiceService] Language detection error:', error);
+      log.error('[VoiceService] Language detection error', error);
       return 'ru';
     } finally {
       try {
@@ -167,7 +167,7 @@ export class VoiceService {
         }
       }
     } catch (error: unknown) {
-      logger.error('[VoiceService] Cleanup error:', error);
+      log.error('[VoiceService] Cleanup error', error);
     }
   }
 }

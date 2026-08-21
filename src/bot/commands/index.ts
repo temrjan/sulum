@@ -1,4 +1,4 @@
-import { logger } from '../../utils/logger';
+import { log } from '../../utils/logger';
 import { Bot } from 'grammy';
 import { MyContext } from '../types';
 import { PrismaClient } from '@prisma/client';
@@ -45,7 +45,7 @@ export function setupCommands(bot: Bot<MyContext>) {
         );
       }
     } catch (error) {
-      logger.error('Start command error:', error);
+      log.error('Start command error', error);
 
       // Fallback - show language selection
       ctx.session.currentStep = 'language_selection';
@@ -129,7 +129,7 @@ Shunchaki savolingizni yozing.
         reply_markup: mainKeyboard(lang)
       });
     } catch (error) {
-      logger.error('Profile command error:', error);
+      log.error('Profile command error', error);
       await ctx.reply(lang === 'uz' ? 'Profilni yuklashda xato' : 'Ошибка загрузки профиля');
     }
   });
@@ -192,7 +192,7 @@ Shunchaki savolingizni yozing.
       await ctx.reply(statsText, { parse_mode: 'Markdown' });
 
     } catch (error) {
-      logger.error('Stats command error:', error);
+      log.error('Stats command error', error);
       await ctx.reply('❌ Ошибка получения статистики');
     }
   });

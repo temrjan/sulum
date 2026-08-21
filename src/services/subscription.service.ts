@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger';
+import { log } from '../utils/logger';
 /**
  * Subscription Service for Sulum
  * Управление подписками пользователей
@@ -178,7 +178,7 @@ class SubscriptionService {
         },
       });
 
-      logger.info('Payment created', {
+      log.info('Payment created', {
         invoiceId,
         planKey,
         userId: user.id,
@@ -189,7 +189,7 @@ class SubscriptionService {
         checkoutUrl: result.data.checkout_url,
       };
     } catch (error) {
-      logger.error('Failed to create payment', error);
+      log.error('Failed to create payment', error);
 
       await prisma.payment.update({
         where: { id: payment.id },
@@ -210,7 +210,7 @@ class SubscriptionService {
     });
 
     if (!payment) {
-      logger.warn('Payment not found for callback', { invoiceId });
+      log.warn('Payment not found for callback', { invoiceId });
       return false;
     }
 
@@ -290,7 +290,7 @@ class SubscriptionService {
       });
     });
 
-    logger.info('Subscription activated', {
+    log.info('Subscription activated', {
       userId: payment.userId,
       planKey,
       endDate,

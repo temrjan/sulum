@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger';
+import { log } from '../utils/logger';
 import { Router, Request, Response } from 'express';
 import { queryRag } from '../services/rag-client';
 import { SYSTEM_PROMPT } from '../config/system-prompt';
@@ -59,7 +59,7 @@ router.post('/chat', async (req: Request<unknown, unknown, ChatBody>, res: Respo
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logger.error('AI Chat error:', error);
+    log.error('AI Chat error', error);
     res.status(500).json({
       error: 'Failed to process your question',
       message: error instanceof Error ? error.message : 'Unknown error'
