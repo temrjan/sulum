@@ -28,25 +28,36 @@ router.post('/callback', async (req: Request<unknown, unknown, MulticardCallback
 
   try {
     if (!multicardService.validateCallback(req.body as Record<string, unknown>)) {
-      logger.warn('Invalid callback payload');
-      res.status(400).json({ error: 'Invalid payload' });
+      logger.warn('Invalid callback signature');
+      res.status(400).json({ success: false, message: 'Invalid signature' });
       return;
     }
 
     const invoiceId = req.body.invoice_id;
+    const amountTiyin = Number(req.body.amount);
 
     if (!invoiceId) {
-      res.status(400).json({ error: 'Missing invoice_id' });
+      res.status(400).json({ success: false, message: 'Missing invoice_id' });
       return;
     }
 
     // Multicard шлёт callback только при успешной оплате!
     // Поэтому передаём 'paid' как статус
-    const success = await subscriptionService.processPaymentCallback(invoiceId, 'paid');
+    const result = await subscriptionService.processPaymentCallback(invoiceId, 'paid', amountTiyin);
 
-    log.info('Payment callback processed', { invoiceId, success });
+    log.info('Payment callback processed', { invoiceId, result });
 
-    if (success) {
+    if (result === 'not_found') {
+      res.status(404).json({ success: false, message: 'Не найден инвойс' });
+      return;
+    }
+
+    if (result === 'amount_mismatch') {
+      res.status(400).json({ success: false, message: 'Amount mismatch' });
+      return;
+    }
+
+    if (result === 'activated') {
       const payment = await prisma.payment.findUnique({
         where: { invoiceId },
         include: { user: true }
@@ -65,7 +76,7 @@ router.post('/callback', async (req: Request<unknown, unknown, MulticardCallback
             'Спасибо!';
 
         try {
-          const botToken = process.env.BOT_TOKEN;
+          const botToken = process.env.TELEGRAM_BOT_TOKEN;
           if (botToken) {
             const bot = new Bot(botToken);
             await bot.api.sendMessage(telegramId, successMsg, { parse_mode: 'Markdown' });

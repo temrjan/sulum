@@ -216,13 +216,38 @@ class MulticardService {
   }
 
   /**
-   * Валидировать callback от Multicard
+   * Валидировать callback от Multicard.
+   *
+   * Multicard подписывает callback одной из двух схем (зависит от настройки
+   * магазина callback_scheme; обе ключованы одним secret, поэтому принимаем обе):
+   *   success  : md5(store_id + invoice_id + amount + secret)
+   *   webhooks : sha1(uuid + invoice_id + amount + secret)
+   * amount в callback — целое в тийинах. Сравнение case-insensitive.
    */
   validateCallback(body: Record<string, unknown>): boolean {
     if (!body || typeof body !== 'object') {
       return false;
     }
-    return !!(body.invoice_id || body.invoice_uuid);
+
+    const { store_id, invoice_id, amount, uuid, sign } = body;
+    if (!store_id || !invoice_id || !amount || typeof sign !== 'string') {
+      return false;
+    }
+    if (Number(store_id) !== config.storeId) {
+      return false;
+    }
+
+    const received = sign.toLowerCase();
+    const candidates = [
+      crypto.createHash('md5').update(`${store_id}${invoice_id}${amount}${config.secret}`).digest('hex'),
+      crypto.createHash('sha1').update(`${uuid ?? ''}${invoice_id}${amount}${config.secret}`).digest('hex'),
+    ];
+
+    return candidates.some(
+      (expected) =>
+        expected.length === received.length &&
+        crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received)),
+    );
   }
 
   private sumsToTiyin(sums: number): number {
