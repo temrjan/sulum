@@ -233,8 +233,8 @@ class SubscriptionService {
     }
 
     if (status === 'paid' || status === 'success' || status === 'PAID') {
-      // Сумма из callback обязана совпасть с записью в БД
-      if (amountTiyin !== undefined && Number(payment.amount) * 100 !== amountTiyin) {
+      // Сумма из callback обязательна и обязана совпасть с записью в БД (fail-closed)
+      if (amountTiyin === undefined || Number(payment.amount) * 100 !== amountTiyin) {
         log.error('Callback amount mismatch', undefined, {
           invoiceId,
           expectedTiyin: Number(payment.amount) * 100,
