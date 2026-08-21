@@ -1,4 +1,4 @@
-import { logger } from '../../utils/logger';
+import { logger, log } from '../../utils/logger';
 import https from "https";
 import { PrismaClient } from "@prisma/client";
 
@@ -26,7 +26,7 @@ async function getUserStats() {
     const langStats = await prisma.user.groupBy({ by: ['language'], _count: true });
     return { total: totalUsers, newToday: todayUsers, active24h: activeUsers, languages: langStats };
   } catch (error) {
-    logger.error("Stats error:", error);
+    log.error("Stats error", error);
     return null;
   }
 }
@@ -40,7 +40,7 @@ function sendToAdmin(message: string) {
     method: "POST",
     headers: { "Content-Type": "application/json", "Content-Length": data.length }
   }, (res) => { if (res.statusCode !== 200) logger.error(`Admin notify failed: ${res.statusCode}`); });
-  req.on("error", (error) => logger.error("Admin notify error:", error.message));
+  req.on("error", (error) => log.error("Admin notify error", error.message));
   req.write(data);
   req.end();
 }
@@ -100,7 +100,7 @@ export async function notifyAdminAboutInvoice(invoiceInfo: InvoiceInfo) {
   message += `   Срок: ${days} дней\n`;
   
   if (checkoutUrl) {
-    message += `\n🔗 <a href=${checkoutUrl}>Ссылка на оплату</a>\n`;
+    message += `\n🔗 <a href="${checkoutUrl}">Ссылка на оплату</a>\n`;
   }
   
   message += `\n<i>⏰ ${new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent' })}</i>`;
