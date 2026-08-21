@@ -1,6 +1,13 @@
 import Redis from 'ioredis';
+import { log } from '../utils/logger';
 
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+
+// Swallow connection errors: ioredis reconnects automatically,
+// without a handler each retry spams "Unhandled error event" into logs
+redis.on('error', (err) => {
+  log.error('[Redis] Connection error', err);
+});
 
 // TTL: 2 hours (7200 seconds)
 const HISTORY_TTL = 7200;
