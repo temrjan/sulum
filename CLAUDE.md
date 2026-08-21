@@ -23,7 +23,7 @@ npx tsc --noEmit       # type check
 - Host: 7demo (62.169.20.2:9281)
 - Path: /root/server/products/product-sulum
 - Container: product-sulum
-- Domain: sulum.7demo.uz (Caddy)
+- Domain: api.sulum.uz (Caddy: reverse_proxy product-sulum:3000)
 
 ## Rules
 
