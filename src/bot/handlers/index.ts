@@ -1,5 +1,5 @@
-import { logger } from '../../utils/logger';
-import { Bot, InputFile } from 'grammy';
+import { logger, log } from '../../utils/logger';
+import { Bot } from 'grammy';
 import { MyContext } from '../types';
 import { PrismaClient } from '@prisma/client';
 import {
@@ -19,7 +19,6 @@ import {
   SUBSCRIPTION_PLANS
 } from '../../services/subscription.service';
 import { multicardService } from '../../services/multicard.service';
-import { voiceService } from '../../services/voiceService';
 
 const prisma = new PrismaClient();
 
@@ -122,7 +121,7 @@ export function setupHandlers(bot: Bot<MyContext>) {
       });
 
     } catch (error) {
-      logger.error('Language selection error:', error);
+      log.error('Language selection error', error);
       await ctx.answerCallbackQuery({ text: 'Ошибка. Попробуй /start' });
     }
   });
@@ -185,7 +184,7 @@ export function setupHandlers(bot: Bot<MyContext>) {
         await ctx.reply(errorMsg);
       }
     } catch (error) {
-      logger.error('Subscription payment error:', error);
+      log.error('Subscription payment error', error);
       const errorMsg = lang === 'uz'
         ? '❌ Xato yuz berdi'
         : '❌ Произошла ошибка';
@@ -299,7 +298,7 @@ export function setupHandlers(bot: Bot<MyContext>) {
         reply_markup: profileKeyboard(lang)
       });
     } catch (error) {
-      logger.error('Profile button error:', error);
+      log.error('Profile button error', error);
       await ctx.reply(lang === 'uz' ? 'Xato yuz berdi' : 'Произошла ошибка');
     }
   });
@@ -464,7 +463,7 @@ export function setupHandlers(bot: Bot<MyContext>) {
       logger.info('Chat [' + lang + '] - User: ' + telegramUser.id + ', Daily: ' + (dailyCount + 1) + '/' + dailyLimit);
 
     } catch (error) {
-      logger.error('Chat error:', error);
+      log.error('Chat error', error);
       const errorMsg = lang === 'uz'
         ? '❌ Xato. Qaytadan urinib ko\'ring.'
         : '❌ Ошибка. Попробуй ещё раз.';
@@ -475,119 +474,19 @@ export function setupHandlers(bot: Bot<MyContext>) {
   // ═══════════════════════════════════════════════════════════════════
   // Handle voice messages
   // ═══════════════════════════════════════════════════════════════════
+  // Voice is disabled: the OpenAI key used for STT/TTS is dead.
+  // Will be rewritten for OpenRouter (different API shape) — until then, text only.
   bot.on('message:voice', async (ctx) => {
     const telegramUser = ctx.from;
     if (!telegramUser) return;
 
-    const voice = ctx.message?.voice;
-    if (!voice) return;
-
-    let user = await prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { telegramId: BigInt(telegramUser.id) }
     });
+    const lang = (user?.language ?? ctx.session.language ?? 'ru') as 'ru' | 'uz';
 
-    if (!user) {
-      const lang = ctx.session.language as 'ru' | 'uz' || 'ru';
-      await ctx.reply(lang === 'uz' ? 'Avval /start bosing' : 'Сначала нажми /start');
-      return;
-    }
-
-    const lang = user.language as 'ru' | 'uz';
-    ctx.session.language = lang;
-
-    if (!ctx.session.chatHistory) {
-      ctx.session.chatHistory = [];
-    }
-
-    const dailyLimit = await subscriptionService.getDailyLimit(BigInt(telegramUser.id));
-
-    let dailyCount = user.dailyMsgCount;
-    if (isNewDay(user.lastMsgDate)) {
-      dailyCount = 0;
-    }
-
-    if (dailyCount >= dailyLimit) {
-      const hasSubscription = await subscriptionService.hasActiveSubscription(BigInt(telegramUser.id));
-      const limitMsg = hasSubscription
-        ? (lang === 'uz'
-            ? '⚠️ Bugungi ' + dailyLimit + ' ta xabar limiti tugadi.'
-            : '⚠️ Лимит ' + dailyLimit + ' сообщений исчерпан.')
-        : (lang === 'uz'
-            ? '⚠️ Bugungi ' + dailyLimit + ' ta bepul xabar limiti tugadi. 💎 Premium obuna bilan kuniga ' + PREMIUM_DAILY_LIMIT + ' ta xabar!'
-            : '⚠️ Лимит ' + dailyLimit + ' бесплатных сообщений исчерпан. 💎 С Premium — ' + PREMIUM_DAILY_LIMIT + ' в день!');
-      await ctx.reply(limitMsg);
-      return;
-    }
-
-    try {
-      const statusMsg = await ctx.reply(lang === 'uz' ? '🎤 Sizni tinglayman...': '🎤 Слушаю вас...');
-
-      const fileId = voice.file_id;
-      const file = await ctx.api.getFile(fileId);
-      const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
-      
-      const response = await fetch(fileUrl);
-      const audioBuffer = Buffer.from(await response.arrayBuffer());
-
-      await ctx.api.editMessageText(
-        ctx.chat!.id,
-        statusMsg.message_id,
-        lang === 'uz' ? '🤔 Javob tayyorlayman...': '🤔 Думаю над ответом...'
-      ).catch(() => {});
-
-      const result = await voiceService.processVoiceMessage(
-        audioBuffer,
-        telegramUser.id.toString(),
-        async (text: string) => {
-          const ragResult = await queryRag(text, ctx.session.chatHistory, lang, SYSTEM_PROMPT);
-          return ragResult.answer;
-        }
-      );
-
-      await ctx.api.deleteMessage(ctx.chat!.id, statusMsg.message_id).catch(() => {});
-
-      await ctx.reply(`📝 ${lang === 'uz' ? 'Siz' : 'Вы'}: ${result.transcript}`);
-
-      ctx.session.chatHistory.push({ role: 'user', content: result.transcript });
-      ctx.session.chatHistory.push({ role: 'assistant', content: result.response });
-
-      await ctx.replyWithChatAction('record_voice');
-
-      const caption = result.response.length > 200
-        ? result.response.substring(0, 200) + '...'
-        : result.response;
-
-      await ctx.replyWithVoice(
-        new InputFile(result.audioResponse, 'response.mp3'),
-        { caption: `🗣 Sulum: ${caption}` }
-      );
-
-      await prisma.user.update({
-        where: { telegramId: BigInt(telegramUser.id) },
-        data: {
-          dailyMsgCount: dailyCount + 1,
-          lastMsgDate: new Date(),
-          lastActiveAt: new Date()
-        }
-      });
-
-      const remaining = dailyLimit - (dailyCount + 1);
-      logger.info(`Voice [${lang}] - User: ${telegramUser.id}, Daily: ${dailyCount + 1}/${dailyLimit}`);
-
-      if (remaining <= 3 && remaining > 0) {
-        await ctx.reply(lang === 'uz'
-          ? `_Bugun qoldi: ${remaining}_`
-          : `_Осталось сегодня: ${remaining}_`,
-          { parse_mode: 'Markdown' }
-        );
-      }
-
-    } catch (error: unknown) {
-      logger.error('Voice message error:', error);
-      const errorMsg = lang === 'uz'
-        ? '❌ Ovozli xabarni qayta ishlab bolmadi. Matn bilan yozing.'
-        : '❌ Не удалось обработать голосовое. Попробуйте текстом.';
-      await ctx.reply(errorMsg);
-    }
+    await ctx.reply(lang === 'uz'
+      ? "🎤 Ovozli xabarlar vaqtincha o'chirilgan. Matn bilan yozing."
+      : '🎤 Голосовые временно отключены. Напишите текстом.');
   });
 }
