@@ -24,7 +24,12 @@ interface MulticardCallbackBody {
  * Если callback пришёл - значит оплата прошла успешно.
  */
 router.post('/callback', async (req: Request<unknown, unknown, MulticardCallbackBody>, res: Response): Promise<void> => {
-  log.info('Payment callback received: ' + JSON.stringify(req.body));
+  // Тело колбэка содержит phone, card_token и masked PAN — логируем только идентификаторы
+  log.info('Payment callback received', {
+    invoiceId: req.body.invoice_id,
+    uuid: req.body.uuid,
+    amount: req.body.amount,
+  });
 
   try {
     if (!multicardService.validateCallback(req.body as Record<string, unknown>)) {
